@@ -1,0 +1,59 @@
+#!ipxe
+
+# Some menu defaults
+set menu-timeout 5000
+set submenu-timeout ${menu-timeout}
+isset ${menu-default} || set menu-default exit
+
+{% if nextboot %}
+goto {{ nextboot }}
+{% endif %}
+
+###################### MAIN MENU ####################################
+
+:start
+menu iPXE boot menu
+item --key u ubuntu       Boot Ubuntu 22.04 Server installer
+item --key a arch         Boot Archlinux Netboot
+item shell                Drop to iPXE shell
+item reboot               Reboot computer
+item
+item --key x exit         Exit iPXE and continue BIOS boot
+choose --timeout ${menu-timeout} --default ${menu-default} selected || goto cancel
+set menu-timeout 0
+goto ${selected}
+
+:cancel
+echo You cancelled the menu, dropping you to a shell
+
+:failed
+echo Booting failed, dropping to shell
+goto shell
+
+:shell
+echo Type 'exit' to get the back to the menu
+shell
+set menu-timeout 0
+set submenu-timeout 0
+goto start
+
+:reboot
+reboot
+
+:exit
+exit
+
+:ubuntu
+echo Booting Ubuntu from NFS
+set base-url http://192.168.1.2:3003/pxeboot/ubuntu2204
+initrd ${base-url}/casper/initrd
+kernel ${base-url}/casper/vmlinuz
+imgargs vmlinuz initrd=initrd netboot=nfs ip=dhcp nfsroot=192.168.1.30:/srv/nfs/pxeboot/ubuntu2204 autoinstall ds=nocloud-net;s=http://192.168.1.2:3003/autoinstall/
+boot || goto failed
+goto start
+
+:arch
+echo Booting Archlinux via Netboot
+chain http://192.168.1.2:3003/pxeboot/archlinux/ipxe-arch.efi
+boot || goto failed
+goto start

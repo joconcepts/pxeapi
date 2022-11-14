@@ -1,0 +1,64 @@
+#cloud-config
+chpasswd:
+  list:
+    - "installer:$6$HU19iFdLYs2oYOGA$BC69wZdSA5NId1TvzMZe8QFl0J9XGt/Vz0hQVv9BS5EwooiewWqfJ3SO2osP5oqMuSyCn5iAjJPNkIU5IQnGo0"
+
+autoinstall:
+  version: 1
+  refresh-installer:
+    channel: edge
+    update: yes
+  identity:
+    hostname: {{ hostname }}
+    username: ubuntu
+    password: "$6$HU19iFdLYs2oYOGA$BC69wZdSA5NId1TvzMZe8QFl0J9XGt/Vz0hQVv9BS5EwooiewWqfJ3SO2osP5oqMuSyCn5iAjJPNkIU5IQnGo0"
+  keyboard:
+    layout: de
+    variant: de-latin1-nodeadkeys
+  locale: en_US.UTF-8
+  apt:
+    geoip: false
+    primary:
+      - arches: [amd64]
+        uri: "http://de.archive.ubuntu.com/ubuntu"
+  storage:
+    grub:
+    reorder_uefi: false
+    config:
+    # partition table
+    - { ptable: gpt, path: /dev/sda, wipe: superblock, preserve: false, name: '', grub_device: false, type: disk, id: disk-sda }
+    # efi
+    - { device: disk-sda, size: 1G, wipe: superblock, flag: boot, number: 1, preserve: false, grub_device: true, type: partition, id: partition-0 }
+    - { fstype: fat32, volume: partition-0, preserve: false, type: format, id: format-0 }
+    # boot
+    - { device: disk-sda, size: 2G, wipe: superblock, flag: '', number: 2, preserve: false, grub_device: false, type: partition, id: partition-1 }
+    - { fstype: ext4, volume: partition-1, preserve: false, type: format, id: format-1 }
+    # LVM
+    - { device: disk-sda, size: -1, wipe: superblock, flag: '', number: 3, preserve: false, grub_device: false, type: partition, id: partition-2 }
+    - { name: vg0, devices: [ partition-2 ], preserve: false, type: lvm_volgroup, id: lvm_volgroup-0 }
+    # root
+    - { name: root, volgroup: lvm_volgroup-0, size: 40G, wipe: superblock, preserve: false, type: lvm_partition, id: lvm_partition-0 }
+    - { fstype: ext4, volume: lvm_partition-0, preserve: false, type: format, id: format-2 }
+    # data
+    - { name: data, volgroup: lvm_volgroup-0, size: 100G, wipe: superblock, preserve: false, type: lvm_partition, id: lvm_partition-1 }
+    - { fstype: ext4, volume: lvm_partition-1, preserve: false, type: format, id: format-3 }
+    # Mount points
+    - { path: /, device: format-2, type: mount, id: mount-2 }
+    - { path: /boot, device: format-1, type: mount, id: mount-1 }
+    - { path: /boot/efi, device: format-0, type: mount, id: mount-0 }
+    - { path: /srv/storage, device: format-3, type: mount, id: mount-3 }
+    swap:
+      swap: 0
+  ssh:
+    install-server: yes
+    allow-pw: yes
+  user-data:
+    disable_root: false
+    timezone: Europe/Berlin
+    users:
+      - name: root
+        lock_passwd: false
+        passwd: "$6$HU19iFdLYs2oYOGA$BC69wZdSA5NId1TvzMZe8QFl0J9XGt/Vz0hQVv9BS5EwooiewWqfJ3SO2osP5oqMuSyCn5iAjJPNkIU5IQnGo0"
+        ssh_authorized_keys:
+          - "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIwG8XdTrqLl+hgmYcqqH51PviwBI5tD25IirSLKff6R jonas@archlaptop"
+          - "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAFrcab0yVITsmRrmueq6MD0qYNKlEvW8O1Ib4nkhmWh jonas@pc-keidel-2016-07-05"
